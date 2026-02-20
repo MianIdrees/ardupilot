@@ -1,6 +1,10 @@
 # hw definition file for MatekF405 hardware
 # tested on the MatekF405-OSD board
 # with thanks to betaflight for pinout
+# Customized for Custom Flight Controller with:
+#   - Ublox SAM-M10Q GPS on UART5 (TX5=PC12, RX5=PD2)
+#   - QMC5883L Compass on I2C1 (SCL=PB6, SDA=PB7)
+#   - PPM Receiver on PA3 (RX2/TIM9_CH2)
 
 
 # MCU class and specific type
@@ -18,10 +22,16 @@ define CH_CFG_ST_RESOLUTION 16
 FLASH_SIZE_KB 1024
 
 
-# only one I2C bus
+# only one I2C bus (PB6=SCL, PB7=SDA) for barometer and external compass
 I2C_ORDER I2C1
 
 # order of UARTs (and USB)
+# SERIAL0 = USB
+# SERIAL1 = USART3 (Telem)
+# SERIAL2 = UART4
+# SERIAL3 = USART1
+# SERIAL4 = UART5 (GPS) - PC12=TX, PD2=RX
+# SERIAL5 = USART2
 SERIAL_ORDER OTG1 USART3 UART4 USART1 UART5 USART2
 
 # LEDs
@@ -98,9 +108,13 @@ PC11 USART3_RX USART3
 PA0 UART4_TX UART4
 PA1 UART4_RX UART4
 
-# UART5
+# UART5 for GPS (Ublox SAM-M10Q)
+# TX5 connected to GPS RX, RX5 connected to GPS TX
 PD2  UART5_RX UART5
 PC12 UART5_TX UART5
+
+# Set SERIAL4 (UART5) to GPS protocol by default
+define DEFAULT_SERIAL4_PROTOCOL SerialProtocol_GPS
 
 # PA10 IO-debug-console
 PA11 OTG_FS_DM OTG1
@@ -131,10 +145,14 @@ FLASH_RESERVE_START_KB 64
 # one IMU
 IMU Invensense SPI:mpu6000 ROTATION_YAW_180
 
-# probe for I2C BMP280, but allow init on board variants without onboard baro too
+# probe for I2C barometers, but allow init on board variants without onboard baro too
+# SPL06-001 barometer connected on I2C1 (PB6=SCL, PB7=SDA)
+BARO SPL06 I2C:0:0x76
+BARO SPL06 I2C:0:0x77
 BARO BMP280 I2C:0:0x76
 define HAL_BARO_ALLOW_INIT_NO_BARO
 define AP_BARO_BACKEND_DEFAULT_ENABLED 0
+define AP_BARO_SPL06_ENABLED 1
 define AP_BARO_BMP280_ENABLED 1
 
 # no built-in compass, but probe the i2c bus for all possible
@@ -143,6 +161,14 @@ define ALLOW_ARM_NO_COMPASS
 define AP_COMPASS_PROBING_ENABLED 1
 define HAL_I2C_INTERNAL_MASK 0
 define HAL_COMPASS_AUTO_ROT_DEFAULT 2
+
+# Enable QMC5883L compass driver (used in Mateksys M10Q-5883 GPS module)
+# QMC5883L is at I2C address 0x0D
+define AP_COMPASS_QMC5883L_ENABLED 1
+COMPASS QMC5883L I2C:0:0x0D true ROTATION_NONE
+
+# Also probe for HMC5883L in case different GPS module is used
+define AP_COMPASS_HMC5883_ENABLED 1
 
 # SPI devices
 SPIDEV mpu6000   SPI1 DEVID1 MPU6000_CS MODE3 1*MHZ 8*MHZ 
@@ -159,6 +185,11 @@ ROMFS_WILDCARD libraries/AP_OSD/fonts/font0.bin
 
 # disable parachute to save flash
 define HAL_PARACHUTE_ENABLED 0
+
+# GPS Configuration for Ublox SAM-M10Q
+# GPS connected on UART5 (SERIAL4)
+# Enable Ublox GPS driver
+define AP_GPS_UBLOX_ENABLED 1
 
 # save some flash
 include ../include/minimize_fpv_osd.inc
