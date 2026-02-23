@@ -89,6 +89,45 @@ class AutoTestSub(vehicle_test_suite.TestSuite):
     def default_frame(self):
         return 'vectored'
 
+    def WaterDepth(self):
+        """Check WATER_DEPTH MAVLink message support for ArduSub"""
+
+        self.context_push()
+
+        # Setup rangefinders
+        self.customise_SITL_commandline([
+            "--serial7=sim:nmea", # NMEA Rangefinder
+        ])
+
+        self.set_parameters({
+            "RNGFND1_TYPE" : 17,     # NMEA must attach uart to SITL
+            "RNGFND1_ORIENT" : 25,   # Set to downward facing
+            "RNGFND1_MIN": 0.10,
+            "RNGFND1_MAX": 30.00,
+            "SERIAL7_PROTOCOL" : 9,  # Rangefinder on serial7
+            "SERIAL7_BAUD" : 9600,   # Rangefinder specific baudrate
+        })
+
+        self.reboot_sitl()
+        self.set_rc_default()
+        self.wait_ready_to_arm()
+
+        self.set_message_rate_hz('WATER_DEPTH', 2)
+
+        self.progress("Arming vehicle for WATER_DEPTH test")
+        self.arm_vehicle()
+
+        # wait for at least one WATER_DEPTH message
+        self.progress("Waiting for WATER_DEPTH message")
+        self.assert_receive_message('WATER_DEPTH', timeout=20)
+
+        # assert the message rate is correct
+        self.progress("Checking WATER_DEPTH message rate")
+        self.assert_message_rate_hz('WATER_DEPTH', 2)
+
+        self.disarm_vehicle()
+        self.context_pop()
+
     def is_sub(self):
         return True
 
@@ -901,7 +940,7 @@ class AutoTestSub(vehicle_test_suite.TestSuite):
 
         # This should set the EKF origin, write an ORGN msg to df and a GPS_GLOBAL_ORIGIN msg to MAVLink
         self.mav.mav.set_gps_global_origin_send(1, int(47.607584 * 1e7), int(-122.343911 * 1e7), 0)
-        self.delay_sim_time(1)
+        self.delay_sim_time(2)
 
         if not self.current_onboard_log_contains_message('ORGN'):
             raise NotAchievedException("Did not find expected ORGN message")
@@ -916,15 +955,15 @@ class AutoTestSub(vehicle_test_suite.TestSuite):
         self.reboot_sitl()
 
     def BackupOrigin(self):
-        """Test ORIGIN_LAT and ORIGIN_LON parameters"""
+        """Test AHRS_ORIGIN_LAT and AHRS_ORIGIN_LON parameters"""
 
         self.context_push()
         self.set_parameters({
-            'GPS1_TYPE': 0,              # Disable GPS
+            'GPS1_TYPE': 0,             # Disable GPS
             'EK3_SRC1_POSXY': 0,        # Make sure EK3_SRC parameters do not refer to GPS
             'EK3_SRC1_VELXY': 0,        # Make sure EK3_SRC parameters do not refer to GPS
-            'ORIGIN_LAT': 47.607584,
-            'ORIGIN_LON': -122.343911,
+            'AHRS_ORIGIN_LAT': 47.607584,
+            'AHRS_ORIGIN_LON': -122.343911,
         })
         self.reboot_sitl()
         self.context_collect('STATUSTEXT')
@@ -932,18 +971,12 @@ class AutoTestSub(vehicle_test_suite.TestSuite):
         # Wait for the EKF to be happy in constant position mode
         self.wait_ready_to_arm_const_pos()
 
-        if self.current_onboard_log_contains_message('ORGN'):
-            raise NotAchievedException("Found unexpected ORGN message")
+        self.wait_statustext('AHRS: using recorded origin', check_context=True)
 
-        # This should set the origin and write a record to ORGN
-        self.arm_vehicle()
-
-        self.wait_statustext('Using backup location', check_context=True)
-
+        # check that origin has been logged
         if not self.current_onboard_log_contains_message('ORGN'):
             raise NotAchievedException("Did not find expected ORGN message")
 
-        self.disarm_vehicle()
         self.context_pop()
 
     def assert_mag_fusion_selection(self, expect_sel):
@@ -1282,6 +1315,7 @@ class AutoTestSub(vehicle_test_suite.TestSuite):
             self.SHT3X,
             self.SurfaceSensorless,
             self.GPSForYaw,
+            self.WaterDepth,
         ])
 
         return ret

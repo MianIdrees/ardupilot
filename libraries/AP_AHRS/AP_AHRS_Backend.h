@@ -65,6 +65,40 @@ public:
         Vector3f accel_ef;
         Vector3f accel_bias;
 
+        // a ground velocity in meters/second, North/East/Down
+        Vector3f velocity_NED;
+        bool velocity_NED_valid;
+        // return a ground velocity in meters/second, North/East/Down
+        bool get_velocity_NED(Vector3f &vel) const WARN_IF_UNUSED {
+            if (!velocity_NED_valid) {
+                return false;
+            }
+            vel = velocity_NED;
+            return true;
+        };
+
+        // a derivative of the vertical position in m/s which is
+        // kinematically consistent with the vertical position is
+        // required by some control loops.
+        // This is different to the vertical velocity from the EKF
+        // which is not always consistent with the vertical position
+        // due to the various errors that are being corrected for.
+        float vert_pos_rate_D;
+        bool vert_pos_rate_D_valid;
+        // Get a derivative of the vertical position in m/s which is
+        // kinematically consistent with the vertical position is
+        // required by some control loops.
+        // This is different to the vertical velocity from the EKF
+        // which is not always consistent with the vertical position
+        // due to the various errors that are being corrected for.
+        bool get_vert_pos_rate_D(float &velocity) const {
+            if (!vert_pos_rate_D_valid) {
+                return false;
+            }
+            velocity = vert_pos_rate_D;
+            return true;
+        }
+
         Location location;
         bool location_valid;
 
@@ -97,12 +131,6 @@ public:
 
     // see if EKF lane switching is possible to avoid EKF failsafe
     virtual void check_lane_switch(void) {}
-
-    // check if non-compass sensor is providing yaw.  Allows compass pre-arm checks to be bypassed
-    virtual bool using_noncompass_for_yaw(void) const { return false; }
-
-    // check if external nav is providing yaw
-    virtual bool using_extnav_for_yaw(void) const { return false; }
 
     // request EKF yaw reset to try and avoid the need for an EKF lane switch or failsafe
     virtual void request_yaw_reset(void) {}
@@ -167,18 +195,6 @@ public:
     // return a ground vector estimate in meters/second, in North/East order
     virtual Vector2f groundspeed_vector(void) = 0;
 
-    // return a ground velocity in meters/second, North/East/Down
-    // order. This will only be accurate if have_inertial_nav() is
-    // true
-    virtual bool get_velocity_NED(Vector3f &vec) const WARN_IF_UNUSED {
-        return false;
-    }
-
-    // Get a derivative of the vertical position in m/s which is kinematically consistent with the vertical position is required by some control loops.
-    // This is different to the vertical velocity from the EKF which is not always consistent with the vertical position due to the various errors that are being corrected for.
-    virtual bool get_vert_pos_rate_D(float &velocity) const = 0;
-
-    //
     virtual bool set_origin(const Location &loc) {
         return false;
     }
@@ -244,11 +260,7 @@ public:
     // Resets the baro so that it reads zero at the current height
     // Resets the EKF height to zero
     // Adjusts the EKf origin height so that the EKF height + origin height is the same as before
-    // Returns true if the height datum reset has been performed
-    // If using a range finder for height no reset is performed and it returns false
-    virtual bool resetHeightDatum(void) WARN_IF_UNUSED {
-        return false;
-    }
+    virtual void resetHeightDatum(void) { }
 
     // return the innovations for the specified instance
     // An out of range instance (eg -1) returns data for the primary instance
@@ -268,18 +280,7 @@ public:
         return false;
     }
 
-    // get a source's velocity innovations.  source should be from 0 to 7 (see AP_NavEKF_Source::SourceXY)
-    // returns true on success and results are placed in innovations and variances arguments
-    virtual bool get_vel_innovations_and_variances_for_source(uint8_t source, Vector3f &innovations, Vector3f &variances) const WARN_IF_UNUSED {
-        return false;
-    }
-
     virtual void send_ekf_status_report(class GCS_MAVLINK &link) const = 0;
-
-    // get_hgt_ctrl_limit - get maximum height to be observed by the
-    // control loops in meters and a validity flag.  It will return
-    // false when no limiting is required
-    virtual bool get_hgt_ctrl_limit(float &limit) const WARN_IF_UNUSED { return false; };
 
     // Set to true if the terrain underneath is stable enough to be used as a height reference
     // this is not related to terrain following

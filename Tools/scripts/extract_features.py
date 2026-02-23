@@ -79,6 +79,7 @@ class ExtractFeatures(BuildScriptBase):
             ('AP_RANGEFINDER_JRE_SERIAL_ENABLED', r'AP_RangeFinder_JRE_Serial::get_reading\b',),
             ('AP_RANGEFINDER_RDS02UF_ENABLED', r'AP_RangeFinder_RDS02UF::get_reading\b',),
             ('AP_RANGEFINDER_HEXSOONRADAR_ENABLED', r'AP_RangeFinder_NRA24_CAN::handle_frame'),
+            ('AP_RANGEFINDER_LIGHTWARE_GRF_ENABLED', 'AP_RangeFinder_LightWareGRF::get_reading'),
 
             ('AP_GPS_NMEA_UNICORE_ENABLED', r'AP_GPS_NMEA::parse_agrica_field',),
             ('AP_GPS_{type}_ENABLED', r'AP_GPS_(?P<type>.*)::read\b',),
@@ -204,6 +205,7 @@ class ExtractFeatures(BuildScriptBase):
             ('GPS_MOVING_BASELINE', r'MovingBase::var_info',),
             ('AP_DRONECAN_SEND_GPS', r'AP_GPS_DroneCAN::instance_exists\b',),
             ('AP_GPS_BLENDED_ENABLED', r'AP_GPS::calc_blend_weights\b',),
+            ('AP_GPS_DEBUG_LOGGING_ENABLED', 'AP_GPS_Backend::log_data',),
 
             ('HAL_WITH_DSP', r'AP_HAL::DSP::find_peaks\b',),
             ('AP_INERTIALSENSOR_HARMONICNOTCH_ENABLED', r'AP_InertialSensor::HarmonicNotch::update_params\b',),

@@ -19,18 +19,6 @@ bool AP_AHRS_SIM::get_location(Location &loc) const
     return true;
 }
 
-bool AP_AHRS_SIM::get_velocity_NED(Vector3f &vec) const
-{
-    if (_sitl == nullptr) {
-        return false;
-    }
-
-    const struct SITL::sitl_fdm &fdm = _sitl->state;
-    vec = Vector3f(fdm.speedN, fdm.speedE, fdm.speedD);
-
-    return true;
-}
-
 bool AP_AHRS_SIM::wind_estimate(Vector3f &wind) const
 {
     if (_sitl == nullptr) {
@@ -66,17 +54,6 @@ Vector2f AP_AHRS_SIM::groundspeed_vector(void)
     const struct SITL::sitl_fdm &fdm = _sitl->state;
 
     return Vector2f(fdm.speedN, fdm.speedE);
-}
-
-bool AP_AHRS_SIM::get_vert_pos_rate_D(float &velocity) const
-{
-    if (_sitl == nullptr) {
-        return false;
-    }
-
-    velocity = _sitl->state.speedD;
-
-    return true;
 }
 
 bool AP_AHRS_SIM::get_hagl(float &height) const
@@ -240,6 +217,14 @@ void AP_AHRS_SIM::get_results(AP_AHRS_Backend::Estimates &results)
 
     const Vector3f &accel = _ins.get_accel();
     results.accel_ef = results.dcm_matrix * AP::ahrs().get_rotation_autopilot_body_to_vehicle_body() * accel;
+
+    results.velocity_NED = Vector3f(fdm.speedN, fdm.speedE, fdm.speedD);
+    results.velocity_NED_valid = true;
+
+    // a derivative of the vertical position in m/s which is kinematically consistent with the vertical position is required by some control loops.
+    // This is different to the vertical velocity from the EKF which is not always consistent with the vertical position due to the various errors that are being corrected for.
+    results.vert_pos_rate_D_valid = true;
+    results.vert_pos_rate_D = _sitl->state.speedD;
 
     results.location_valid = get_location(results.location);
 
